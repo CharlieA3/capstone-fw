@@ -2,13 +2,20 @@
 #include <zephyr/kernel.h>
 // zephyr/device.h is included eventually through kernel.h
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/i2c.h>
+#include <zephyr/drivers/lora.h>
 
 // This is accessing the DeviceTree node through its label (can see the entire devicetree in generated zephyr.dts file in the build directory)
 #define LED2 DT_ALIAS(led0)
+// can we do this?
+// const DT_NODELABEL(BME688);
+#define BME DT_NODELABEL(bme688)
 
 // 'gpios' refers to the property name within the led0 node, which is itself inside the leds parent node in the devicetree
 // you can see this^^ in code if you search for the 'zephyr/boards/nordic/nrf54l15dk/nrf54l15dk_common.dtsi' file
 static const struct gpio_dt_spec led_2 = GPIO_DT_SPEC_GET(LED2, gpios);
+
+static const struct i2c_dt_spec bme688 = I2C_DT_SPEC_GET(BME);
 
 int main(void)
 {
