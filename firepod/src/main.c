@@ -36,8 +36,16 @@ int main(void)
         return 0;
     }
 
+    if (!device_is_ready(bme688.bus))
+    {
+        printk("dooodooo %s daaadaaa", bme688.bus->name);
+    }
+    uint8_t temp_lsb;
+
     while (true)
     {
+        
+        i2c_read(bme688.bus, temp_lsb, sizeof(temp_lsb), 0x23);
         state = !state;
         ret = gpio_pin_set_dt(&led_2, state);
         if (ret != 0)
