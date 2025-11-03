@@ -9,7 +9,7 @@
 LOG_MODULE_REGISTER(bme688, LOG_LEVEL_DBG);
 
 #define STACK_SIZE 512
-#define SENSOR_PRIO 4
+#define SENSOR_PRIO 5
 #define CONSOLE_PRIO 5
 
 #define BME DT_NODELABEL(bme688)
@@ -32,12 +32,14 @@ struct sensor_readings
     uint16_t hum;
 };
 
-char sensor_buffer[10 * sizeof(struct sensor_readings)];
-struct k_msgq sensor_queue;
+// char sensor_buffer[10 * sizeof(struct sensor_readings)];
+// struct k_msgq sensor_queue;
 
 // could put extern in front of void why?
-void sensor_reading_entry_point(void *, void *, void *)
+void sensor_reading_entry_point(void *a1, void *, void *)
 {
+    struct k_msgq *q = (struct k_msgq *)a1;
+
     if (!device_is_ready(bme688.bus))
     {
         printk("Cannot interact with device: %s", bme688.bus->name);
@@ -82,7 +84,7 @@ void sensor_reading_entry_point(void *, void *, void *)
         readings.hum = humidity_reading;
 
         // K_FOREVER allows me to wait until the message queue is not full to place something in it
-        k_msgq_put(&sensor_queue, &readings, K_FOREVER);
+        k_msgq_put(q, &readings, K_FOREVER);
 
         // TODO: I think I need to have threads sleep for them to actually switch between
         // I could also turn on tick rate and have the scheduler handle threads with the same priority
@@ -91,7 +93,7 @@ void sensor_reading_entry_point(void *, void *, void *)
 
 void console_entry_point(void *a1, void *, void *)
 {
-    struct k_msgq *q = (struct kmsgq *)a1;
+    struct k_msgq *q = (struct k_msgq *)a1;
     struct sensor_readings values;
 
     while (true)
@@ -109,25 +111,28 @@ void console_entry_point(void *a1, void *, void *)
 
 int main(void)
 {
+    char sensor_buffer[10 * sizeof(struct sensor_readings)];
+    struct k_msgq sensor_queue;
+
     // takes in the queue, buffer, size of the sturct, and the max number of messages allowed
     k_msgq_init(&sensor_queue, sensor_buffer, sizeof(struct sensor_readings), 10);
 
     // the inital count of this semaphore is 0, with the max number of threads that can take it being 1
     // k_sem_init(&sensor_read_sem, 0, 1);
 
-    k_tid_t tid_1 = k_thread_create(&sensor_reading_thread,
-                                    stack_area_1,
-                                    K_THREAD_STACK_SIZEOF(stack_area_1),
-                                    sensor_reading_entry_point,
-                                    &sensor_queue, NULL, NULL,
-                                    SENSOR_PRIO, 0, K_NO_WAIT);
+    k_thread_create(&sensor_reading_thread,
+                    stack_area_1,
+                    K_THREAD_STACK_SIZEOF(stack_area_1),
+                    sensor_reading_entry_point,
+                    &sensor_queue, NULL, NULL,
+                    SENSOR_PRIO, 0, K_NO_WAIT);
 
-    k_tid_t tid_2 = k_thread_create(&console_entry_point,
-                                    stack_area_2,
-                                    K_THREAD_STACK_SIZEOF(stack_area_2),
-                                    console_entry_point,
-                                    &sensor_queue, NULL, NULL,
-                                    CONSOLE_PRIO, 0, K_NO_WAIT);
+    k_thread_create(&printing_thread,
+                    stack_area_2,
+                    K_THREAD_STACK_SIZEOF(stack_area_2),
+                    console_entry_point,
+                    &sensor_queue, NULL, NULL,
+                    CONSOLE_PRIO, 0, K_NO_WAIT);
 
     return 0;
 }
