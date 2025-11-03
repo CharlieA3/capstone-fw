@@ -8,90 +8,126 @@
 
 LOG_MODULE_REGISTER(bme688, LOG_LEVEL_DBG);
 
-// This is accessing the DeviceTree node through its label (can see the entire devicetree in generated zephyr.dts file in the build directory)
-#define LED2 DT_ALIAS(led0)
-// can we do this?
-// const DT_NODELABEL(BME688);
-#define BME DT_NODELABEL(bme688)
+#define STACK_SIZE 512
+#define SENSOR_PRIO 4
+#define CONSOLE_PRIO 5
 
-// 'gpios' refers to the property name within the led0 node, which is itself inside the leds parent node in the devicetree
-// you can see this^^ in code if you search for the 'zephyr/boards/nordic/nrf54l15dk/nrf54l15dk_common.dtsi' file
-static const struct gpio_dt_spec led_2 = GPIO_DT_SPEC_GET(LED2, gpios);
+#define BME DT_NODELABEL(bme688)
 
 static const struct i2c_dt_spec bme688 = I2C_DT_SPEC_GET(BME);
 
-int main(void)
+// this is always underlined in red for some reason
+K_THREAD_STACK_DEFINE(stack_area_1, STACK_SIZE);
+K_THREAD_STACK_DEFINE(stack_area_2, STACK_SIZE);
+
+struct k_thread sensor_reading_thread;
+struct k_thread printing_thread;
+
+// do not need a semaphore for message queues because message queues are thread safe
+// struct k_sem sensor_read_sem;
+
+struct sensor_readings
 {
+    uint32_t temp;
+    uint16_t hum;
+};
 
-    // led_0.port is used because you need to check if the gpio controller itself is ready to be used, if you just do led_0.pin you will get a number like '9'
-    if (!device_is_ready(led_2.port))
-    {
-        return 0;
-    }
+char sensor_buffer[10 * sizeof(struct sensor_readings)];
+struct k_msgq sensor_queue;
 
-    int state = 0;
-
-    int ret;
-    // configuration of led_0 pin
-    ret = gpio_pin_configure_dt(&led_2, GPIO_OUTPUT);
-
-    if (ret != 0)
-    {
-        return 0;
-    }
-
+// could put extern in front of void why?
+void sensor_reading_entry_point(void *, void *, void *)
+{
     if (!device_is_ready(bme688.bus))
     {
-        printk("dooodooo %s daaadaaa", bme688.bus->name);
+        printk("Cannot interact with device: %s", bme688.bus->name);
     }
 
-    // confguring the bosch sensor
+    struct sensor_readings readings;
+
+    // confguring the bosch sensor with mode and oversampling rates for each sensor
     uint8_t ctrl_hum = 0x01;
     uint8_t ctrl_meas = (0x02 << 5) | (0x01 << 2) | 0x01;
 
     uint8_t temp_buf[3];
-
     uint32_t temp_reading;
 
     uint8_t hum_buf[2];
-
     uint16_t humidity_reading;
+
+    int ret;
 
     while (true)
     {
+        // since we are using forced mode, the sensor needs to be written to every time we want to read a new value
         i2c_reg_write_byte_dt(&bme688, 0x72, ctrl_hum);
         i2c_reg_write_byte_dt(&bme688, 0x74, ctrl_meas);
 
         ret = i2c_burst_read_dt(&bme688, 0x22, temp_buf, 3);
-        if (ret < 0)
-        {
-            LOG_ERR("I2C read failed (%d)", ret);
-        }
+        // if (ret < 0)
+        // {
+        //     LOG_ERR("I2C read failed (%d)", ret);
+        // }
 
         temp_reading = ((uint32_t)temp_buf[0] << 12) | ((uint32_t)temp_buf[1] << 4) | ((uint32_t)temp_buf[2] >> 4);
+        readings.temp = temp_reading;
 
         ret = i2c_burst_read_dt(&bme688, 0x25, hum_buf, 2);
-        if (ret < 0)
-        {
-            LOG_ERR("I2C read failed (%d)", ret);
-        }
+        // if (ret < 0)
+        // {
+        //     LOG_ERR("I2C read failed (%d)", ret);
+        // }
 
         humidity_reading = ((uint16_t)hum_buf[0] << 8) | ((uint16_t)hum_buf[1]);
+        readings.hum = humidity_reading;
 
-        // state = !state;
-        // ret = gpio_pin_set_dt(&led_2, state);
-        // if (ret != 0)
-        // {
-        //     return 0;
-        // }
-        // printk("LED is now in state: %d", state);
+        // K_FOREVER allows me to wait until the message queue is not full to place something in it
+        k_msgq_put(&sensor_queue, &readings, K_FOREVER);
 
-        printk("temperature reading: %d\n", temp_reading);
-
-        printk("humidity reading: %d\n", humidity_reading);
-
-        k_msleep(500);
+        // TODO: I think I need to have threads sleep for them to actually switch between
+        // I could also turn on tick rate and have the scheduler handle threads with the same priority
     }
+}
+
+void console_entry_point(void *a1, void *, void *)
+{
+    struct k_msgq *q = (struct kmsgq *)a1;
+    struct sensor_readings values;
+
+    while (true)
+    {
+        // might not want no wait here depending on how queue is being populated
+        while (k_msgq_get(q, &values, K_NO_WAIT) == 0)
+        {
+            printk("temperature reading: %d\n", values.temp);
+            printk("humidity reading: %d\n", values.hum);
+        }
+
+        k_msgq_purge(q);
+    }
+}
+
+int main(void)
+{
+    // takes in the queue, buffer, size of the sturct, and the max number of messages allowed
+    k_msgq_init(&sensor_queue, sensor_buffer, sizeof(struct sensor_readings), 10);
+
+    // the inital count of this semaphore is 0, with the max number of threads that can take it being 1
+    // k_sem_init(&sensor_read_sem, 0, 1);
+
+    k_tid_t tid_1 = k_thread_create(&sensor_reading_thread,
+                                    stack_area_1,
+                                    K_THREAD_STACK_SIZEOF(stack_area_1),
+                                    sensor_reading_entry_point,
+                                    &sensor_queue, NULL, NULL,
+                                    SENSOR_PRIO, 0, K_NO_WAIT);
+
+    k_tid_t tid_2 = k_thread_create(&console_entry_point,
+                                    stack_area_2,
+                                    K_THREAD_STACK_SIZEOF(stack_area_2),
+                                    console_entry_point,
+                                    &sensor_queue, NULL, NULL,
+                                    CONSOLE_PRIO, 0, K_NO_WAIT);
 
     return 0;
 }
