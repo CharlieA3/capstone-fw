@@ -32,6 +32,9 @@ struct sensor_readings
     uint16_t hum;
 };
 
+static char sensor_buffer[10 * sizeof(struct sensor_readings)];
+static struct k_msgq sensor_queue;
+
 // char sensor_buffer[10 * sizeof(struct sensor_readings)];
 // struct k_msgq sensor_queue;
 
@@ -40,10 +43,11 @@ void sensor_reading_entry_point(void *a1, void *, void *)
 {
     struct k_msgq *q = (struct k_msgq *)a1;
 
-    if (!device_is_ready(bme688.bus))
-    {
-        printk("Cannot interact with device: %s", bme688.bus->name);
-    }
+    // if (!device_is_ready(bme688.bus))
+    // {
+    // printk("Cannot interact with device: %s", bme688.bus->name);
+    // return
+    // }
 
     struct sensor_readings readings;
 
@@ -57,6 +61,8 @@ void sensor_reading_entry_point(void *a1, void *, void *)
     uint8_t hum_buf[2];
     uint16_t humidity_reading;
 
+    uint8_t status;
+
     int ret;
 
     while (true)
@@ -65,7 +71,15 @@ void sensor_reading_entry_point(void *a1, void *, void *)
         i2c_reg_write_byte_dt(&bme688, 0x72, ctrl_hum);
         i2c_reg_write_byte_dt(&bme688, 0x74, ctrl_meas);
 
+        // polls the register until the 0x08 bit is cleared
+        do
+        {
+            i2c_reg_read_byte_dt(&bme688, 0x1D, &status);
+        } while (status & 0x08);
+
+        // TODO: fix this error handling
         ret = i2c_burst_read_dt(&bme688, 0x22, temp_buf, 3);
+        ret = i2c_burst_read_dt(&bme688, 0x25, hum_buf, 2);
         // if (ret < 0)
         // {
         //     LOG_ERR("I2C read failed (%d)", ret);
@@ -74,20 +88,13 @@ void sensor_reading_entry_point(void *a1, void *, void *)
         temp_reading = ((uint32_t)temp_buf[0] << 12) | ((uint32_t)temp_buf[1] << 4) | ((uint32_t)temp_buf[2] >> 4);
         readings.temp = temp_reading;
 
-        ret = i2c_burst_read_dt(&bme688, 0x25, hum_buf, 2);
-        // if (ret < 0)
-        // {
-        //     LOG_ERR("I2C read failed (%d)", ret);
-        // }
-
         humidity_reading = ((uint16_t)hum_buf[0] << 8) | ((uint16_t)hum_buf[1]);
         readings.hum = humidity_reading;
 
         // K_FOREVER allows me to wait until the message queue is not full to place something in it
         k_msgq_put(q, &readings, K_FOREVER);
 
-        // TODO: I think I need to have threads sleep for them to actually switch between
-        // I could also turn on tick rate and have the scheduler handle threads with the same priority
+        k_sleep(K_MSEC(100));
     }
 }
 
@@ -104,35 +111,30 @@ void console_entry_point(void *a1, void *, void *)
             printk("temperature reading: %d\n", values.temp);
             printk("humidity reading: %d\n", values.hum);
         }
-
-        k_msgq_purge(q);
     }
 }
 
 int main(void)
 {
-    char sensor_buffer[10 * sizeof(struct sensor_readings)];
-    struct k_msgq sensor_queue;
-
     // takes in the queue, buffer, size of the sturct, and the max number of messages allowed
     k_msgq_init(&sensor_queue, sensor_buffer, sizeof(struct sensor_readings), 10);
 
     // the inital count of this semaphore is 0, with the max number of threads that can take it being 1
     // k_sem_init(&sensor_read_sem, 0, 1);
 
-    k_thread_create(&sensor_reading_thread,
-                    stack_area_1,
-                    K_THREAD_STACK_SIZEOF(stack_area_1),
-                    sensor_reading_entry_point,
-                    &sensor_queue, NULL, NULL,
-                    SENSOR_PRIO, 0, K_NO_WAIT);
+    k_tid_t sensor_tid = k_thread_create(&sensor_reading_thread,
+                                         stack_area_1,
+                                         K_THREAD_STACK_SIZEOF(stack_area_1),
+                                         sensor_reading_entry_point,
+                                         &sensor_queue, NULL, NULL,
+                                         SENSOR_PRIO, 0, K_NO_WAIT);
 
-    k_thread_create(&printing_thread,
-                    stack_area_2,
-                    K_THREAD_STACK_SIZEOF(stack_area_2),
-                    console_entry_point,
-                    &sensor_queue, NULL, NULL,
-                    CONSOLE_PRIO, 0, K_NO_WAIT);
+    k_tid_t console_tid = k_thread_create(&printing_thread,
+                                          stack_area_2,
+                                          K_THREAD_STACK_SIZEOF(stack_area_2),
+                                          console_entry_point,
+                                          &sensor_queue, NULL, NULL,
+                                          CONSOLE_PRIO, 0, K_NO_WAIT);
 
     return 0;
 }
