@@ -1,53 +1,67 @@
-// #include <stdio.h>
 #include <zephyr/kernel.h>
-// zephyr/device.h is included eventually through kernel.h
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/i2c.h>
-#include <zephyr/drivers/lora.h>
+#include "i2c_thread.h"
 
-// This is accessing the DeviceTree node through its label (can see the entire devicetree in generated zephyr.dts file in the build directory)
-#define LED2 DT_ALIAS(led0)
-// can we do this?
-// const DT_NODELABEL(BME688);
-#define BME DT_NODELABEL(bme688)
+// global message queue
+static char bme688_buffer[10 * sizeof(struct bme688_readings)];
+struct k_msgq bme688_queue;
 
-// 'gpios' refers to the property name within the led0 node, which is itself inside the leds parent node in the devicetree
-// you can see this^^ in code if you search for the 'zephyr/boards/nordic/nrf54l15dk/nrf54l15dk_common.dtsi' file
-static const struct gpio_dt_spec led_2 = GPIO_DT_SPEC_GET(LED2, gpios);
+K_THREAD_STACK_DEFINE(stack_area_1, STACK_SIZE);
+K_THREAD_STACK_DEFINE(stack_area_2, STACK_SIZE);
 
-static const struct i2c_dt_spec bme688 = I2C_DT_SPEC_GET(BME);
+struct k_thread i2c_reading_thread;
+struct k_thread printing_thread;
 
 int main(void)
 {
-    // led_0.port is used because you need to check if the gpio controller itself is ready to be used, if you just do led_0.pin you will get a number like '9'
-    if (!device_is_ready(led_2.port))
-    {
-        return 0;
-    }
+    // init message queue to pass to threads
+    k_msgq_init(&bme688_queue, bme688_buffer, sizeof(struct bme688_readings), 10);
 
-    int state = 0;
+    k_thread_create(&i2c_reading_thread,
+                    stack_area_1,
+                    K_THREAD_STACK_SIZEOF(stack_area_1),
+                    sensor_reading_entry_point,
+                    &bme688_queue, NULL, NULL,
+                    SENSOR_PRIO, 0, K_NO_WAIT);
 
-    int ret;
-    // configuration of led_0 pin
-    ret = gpio_pin_configure_dt(&led_2, GPIO_OUTPUT);
-
-    if (ret != 0)
-    {
-        return 0;
-    }
-
-    while (true)
-    {
-        state = !state;
-        ret = gpio_pin_set_dt(&led_2, state);
-        if (ret != 0)
-        {
-            return 0;
-        }
-        printk("LED is now in state: %d", state);
-
-        k_msleep(4000);
-    }
+    k_thread_create(&printing_thread,
+                    stack_area_2,
+                    K_THREAD_STACK_SIZEOF(stack_area_2),
+                    console_entry_point,
+                    &bme688_queue, NULL, NULL,
+                    CONSOLE_PRIO, 0, K_NO_WAIT);
 
     return 0;
 }
+
+// ------------------------ FirePod ---------------------------
+
+// 1. Initialize message queues and threads
+
+// 2. Spawn threads, immediately switch to sensor thread to check if they are running properly, populate a message queue
+
+// 3. Once everything is chillin, go to sleepy mode
+
+// Questions
+// 1. Would sleep be it's own thread, or just a function I can call in the sensors thread? The goal here would be to wake up based on an interrupt
+
+// ------------------------ Sensor thread ---------------------------
+
+// 1. I2C initialization - does it make sense to have the sensor thread initialize the SCP drivers or should this be done before the thread is started?
+
+// 2. SPI initialization
+
+// 3. Read data from each sensor
+
+// 4. check readings from each sensors to tell if they are within normal levels and add the average of the past x number of readings to their own message queue
+
+// ------------------------ RF thread ---------------------------
+
+// 1. Make sure RF chip is chillin
+
+// 2. read data from the message queues for sensors or just fire rating (or we can actually calulate in this thread)
+
+// 3. Structure data and use send function
+
+// 4. Once sending is done, switch to receiving mode
+
+// ------------------------ HW Malfunction thread ---------------------------

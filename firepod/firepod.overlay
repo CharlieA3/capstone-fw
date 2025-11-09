@@ -8,15 +8,11 @@
 &i2c1 {
     status = "okay";
     // I think we can change this to 100,000 Hz
-    clock-frequency = <100000>;
+    // clock-frequency = <100000>;
 
     bme688: bme688@77 {
         compatible = "bosch,bme680";
-        // what is compatible used for?
-        // compatible = 
         // slave address
         reg = <0x77>;
-        // can use this to access by label in the code
-        label = "BME688";
     };
 };
