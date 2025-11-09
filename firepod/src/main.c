@@ -1,140 +1,34 @@
-// #include <stdio.h>
 #include <zephyr/kernel.h>
-// zephyr/device.h is included eventually through kernel.h
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/i2c.h>
-#include <zephyr/drivers/lora.h>
-#include <zephyr/logging/log.h>
+#include "i2c_thread.h"
 
-LOG_MODULE_REGISTER(bme688, LOG_LEVEL_DBG);
+// global message queue
+static char bme688_buffer[10 * sizeof(struct bme688_readings)];
+struct k_msgq bme688_queue;
 
-#define STACK_SIZE 512
-#define SENSOR_PRIO 5
-#define CONSOLE_PRIO 5
-
-#define BME DT_NODELABEL(bme688)
-
-static const struct i2c_dt_spec bme688 = I2C_DT_SPEC_GET(BME);
-
-// this is always underlined in red for some reason
 K_THREAD_STACK_DEFINE(stack_area_1, STACK_SIZE);
 K_THREAD_STACK_DEFINE(stack_area_2, STACK_SIZE);
 
-struct k_thread sensor_reading_thread;
+struct k_thread i2c_reading_thread;
 struct k_thread printing_thread;
-
-// do not need a semaphore for message queues because message queues are thread safe
-// struct k_sem sensor_read_sem;
-
-struct sensor_readings
-{
-    uint32_t temp;
-    uint16_t hum;
-};
-
-static char sensor_buffer[10 * sizeof(struct sensor_readings)];
-static struct k_msgq sensor_queue;
-
-// char sensor_buffer[10 * sizeof(struct sensor_readings)];
-// struct k_msgq sensor_queue;
-
-// could put extern in front of void why?
-void sensor_reading_entry_point(void *a1, void *, void *)
-{
-    struct k_msgq *q = (struct k_msgq *)a1;
-
-    // if (!device_is_ready(bme688.bus))
-    // {
-    // printk("Cannot interact with device: %s", bme688.bus->name);
-    // return
-    // }
-
-    struct sensor_readings readings;
-
-    // confguring the bosch sensor with mode and oversampling rates for each sensor
-    uint8_t ctrl_hum = 0x01;
-    uint8_t ctrl_meas = (0x02 << 5) | (0x01 << 2) | 0x01;
-
-    uint8_t temp_buf[3];
-    uint32_t temp_reading;
-
-    uint8_t hum_buf[2];
-    uint16_t humidity_reading;
-
-    uint8_t status;
-
-    int ret;
-
-    while (true)
-    {
-        // since we are using forced mode, the sensor needs to be written to every time we want to read a new value
-        i2c_reg_write_byte_dt(&bme688, 0x72, ctrl_hum);
-        i2c_reg_write_byte_dt(&bme688, 0x74, ctrl_meas);
-
-        // polls the register until the 0x08 bit is cleared
-        do
-        {
-            i2c_reg_read_byte_dt(&bme688, 0x1D, &status);
-        } while (status & 0x08);
-
-        // TODO: fix this error handling
-        ret = i2c_burst_read_dt(&bme688, 0x22, temp_buf, 3);
-        ret = i2c_burst_read_dt(&bme688, 0x25, hum_buf, 2);
-        // if (ret < 0)
-        // {
-        //     LOG_ERR("I2C read failed (%d)", ret);
-        // }
-
-        temp_reading = ((uint32_t)temp_buf[0] << 12) | ((uint32_t)temp_buf[1] << 4) | ((uint32_t)temp_buf[2] >> 4);
-        readings.temp = temp_reading;
-
-        humidity_reading = ((uint16_t)hum_buf[0] << 8) | ((uint16_t)hum_buf[1]);
-        readings.hum = humidity_reading;
-
-        // K_FOREVER allows me to wait until the message queue is not full to place something in it
-        k_msgq_put(q, &readings, K_FOREVER);
-
-        k_sleep(K_MSEC(100));
-    }
-}
-
-void console_entry_point(void *a1, void *, void *)
-{
-    struct k_msgq *q = (struct k_msgq *)a1;
-    struct sensor_readings values;
-
-    while (true)
-    {
-        // might not want no wait here depending on how queue is being populated
-        while (k_msgq_get(q, &values, K_NO_WAIT) == 0)
-        {
-            printk("temperature reading: %d\n", values.temp);
-            printk("humidity reading: %d\n", values.hum);
-        }
-    }
-}
 
 int main(void)
 {
-    // takes in the queue, buffer, size of the sturct, and the max number of messages allowed
-    k_msgq_init(&sensor_queue, sensor_buffer, sizeof(struct sensor_readings), 10);
+    // init message queue to pass to threads
+    k_msgq_init(&bme688_queue, bme688_buffer, sizeof(struct bme688_readings), 10);
 
-    // the inital count of this semaphore is 0, with the max number of threads that can take it being 1
-    // k_sem_init(&sensor_read_sem, 0, 1);
+    k_thread_create(&i2c_reading_thread,
+                    stack_area_1,
+                    K_THREAD_STACK_SIZEOF(stack_area_1),
+                    sensor_reading_entry_point,
+                    &bme688_queue, NULL, NULL,
+                    SENSOR_PRIO, 0, K_NO_WAIT);
 
-    k_tid_t sensor_tid = k_thread_create(&sensor_reading_thread,
-                                         stack_area_1,
-                                         K_THREAD_STACK_SIZEOF(stack_area_1),
-                                         sensor_reading_entry_point,
-                                         &sensor_queue, NULL, NULL,
-                                         SENSOR_PRIO, 0, K_NO_WAIT);
-
-    k_tid_t console_tid = k_thread_create(&printing_thread,
-                                          stack_area_2,
-                                          K_THREAD_STACK_SIZEOF(stack_area_2),
-                                          console_entry_point,
-                                          &sensor_queue, NULL, NULL,
-                                          CONSOLE_PRIO, 0, K_NO_WAIT);
+    k_thread_create(&printing_thread,
+                    stack_area_2,
+                    K_THREAD_STACK_SIZEOF(stack_area_2),
+                    console_entry_point,
+                    &bme688_queue, NULL, NULL,
+                    CONSOLE_PRIO, 0, K_NO_WAIT);
 
     return 0;
 }
