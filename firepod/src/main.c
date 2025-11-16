@@ -1,5 +1,6 @@
 #include <zephyr/kernel.h>
 #include "i2c_thread.h"
+#include "lora_thread.h"
 
 // global message queue
 static char bme688_buffer[10 * sizeof(struct bme688_readings)];
@@ -7,9 +8,11 @@ struct k_msgq bme688_queue;
 
 K_THREAD_STACK_DEFINE(stack_area_1, STACK_SIZE);
 K_THREAD_STACK_DEFINE(stack_area_2, STACK_SIZE);
+K_THREAD_STACK_DEFINE(lora_stack, LORA_STACK_SIZE)
 
 struct k_thread i2c_reading_thread;
 struct k_thread printing_thread;
+struct k_thread lora_thread;
 
 int main(void)
 {
@@ -29,6 +32,8 @@ int main(void)
                     console_entry_point,
                     &bme688_queue, NULL, NULL,
                     CONSOLE_PRIO, 0, K_NO_WAIT);
+
+    k_thread_create();
 
     return 0;
 }

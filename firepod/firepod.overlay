@@ -16,3 +16,12 @@
         reg = <0x77>;
     };
 };
+
+&spi1 {
+    status = "okay";
+
+    sx1262: sx1262@00 {
+        compatible = "semtech,sx1262";
+        reg = <0x00>;
+    }
+}
