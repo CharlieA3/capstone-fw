@@ -6,7 +6,7 @@ manifest:
   projects:
     - name: zephyr
       remote: zephyrproject-rtos
-      revision: main
+      revision: v4.2.0
       import:
         name-allowlist:
           - cmsis
@@ -14,3 +14,4 @@ manifest:
           - cmsis-nn
           - cmsis_6
           - hal_stm32
+          - loramac-node

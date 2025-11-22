@@ -3,11 +3,10 @@
         i2c = &i2c1;
     };
 };
-// could put an address here in the name after '@' but don't need to because we are just adding to the existing i2c reference
+
 // something like 'i2c@40005400' is the base address for the i2c register map
 &i2c1 {
     status = "okay";
-    // I think we can change this to 100,000 Hz
     // clock-frequency = <100000>;
 
     bme688: bme688@77 {
@@ -19,9 +18,20 @@
 
 &spi1 {
     status = "okay";
+    // on the datasheet this says 20 Mbit/s
+    // spi-max-frequency = <0x1312D00>;
 
-    sx1262: sx1262@00 {
+    // address DOES NOT need to be set here, the lora drivers handle all the SPI transactions under the hood
+    sx1262: sx1262@0 {
+        status = "okay";
+        spi-max-frequency = <20000000>;
         compatible = "semtech,sx1262";
-        reg = <0x00>;
-    }
-}
+        // this will be PA2 (2) for our custom PCB
+        reset-gpios = <&gpioa 0 GPIO_ACTIVE_LOW>;
+        // this will be PA1 (1) for our custom PCB
+        busy-gpios = <&gpiob 3 GPIO_ACTIVE_LOW>;
+        // this will be PA3 (3) for our custom PCB
+        dio1-gpios = <&gpiob 4 GPIO_ACTIVE_LOW>;
+        reg = <0x0>;
+    };
+};

@@ -1,4 +1,4 @@
-#include "i2c_thread.h"
+#include "sensor_thread.h"
 #include <zephyr/drivers/i2c.h>
 
 #define BME DT_NODELABEL(bme688)
