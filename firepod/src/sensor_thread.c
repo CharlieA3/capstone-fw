@@ -1,5 +1,5 @@
-#include "sensor_thread.h"
 #include <zephyr/drivers/i2c.h>
+#include "sensor_thread.h"
 
 #define BME DT_NODELABEL(bme688)
 static const struct i2c_dt_spec bme688 = I2C_DT_SPEC_GET(BME);

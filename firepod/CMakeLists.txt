@@ -5,4 +5,4 @@ set(ZEPHYR_TOOLCHAIN_VARIANT zephyr)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(firepod)
 
-target_sources(app PRIVATE src/main.c src/sensor_thread.c)
+target_sources(app PRIVATE src/main.c src/sensor_thread.c src/lora_thread.c)

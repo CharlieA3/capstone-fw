@@ -29,7 +29,7 @@
         // this will be PA2 (2) for our custom PCB
         reset-gpios = <&gpioa 0 GPIO_ACTIVE_LOW>;
         // this will be PA1 (1) for our custom PCB
-        busy-gpios = <&gpiob 3 GPIO_ACTIVE_LOW>;
+        busy-gpios = <&gpiob 3 GPIO_ACTIVE_HIGH>;
         // this will be PA3 (3) for our custom PCB
         dio1-gpios = <&gpiob 4 GPIO_ACTIVE_LOW>;
         reg = <0x0>;
