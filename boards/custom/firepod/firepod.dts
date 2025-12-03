@@ -8,6 +8,8 @@
     compatible = "custom,firepod";
 
     aliases {
+        i2c = &i2c1;
+        spi = &spi1;
         uart-1 = &usart1;
     };
 
