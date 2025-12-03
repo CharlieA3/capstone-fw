@@ -13,3 +13,4 @@ supported:
   - i2c
   - usbd
 vendor: st
+soc: stm32l432xx
