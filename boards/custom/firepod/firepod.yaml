@@ -1,0 +1,15 @@
+identifier: firepod
+name: Generate Hardware Firpod
+type: mcu
+arch: arm
+ram: 64
+flash: 128
+toolchain:
+  - zephyr
+supported:
+  - uart
+  - gpio
+  - spi
+  - i2c
+  - usbd
+vendor: st

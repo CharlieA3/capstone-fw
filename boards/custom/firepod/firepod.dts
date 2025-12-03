@@ -1,0 +1,55 @@
+/dts-v1/;
+
+#include "arm/st/l4/stm32l432.dtsi"
+#include "firepod_pinctrl.dtsi"
+
+/ {
+    model = "firepod";
+    compatible = "custom,firepod";
+
+    aliases {
+        uart-1 = &usart1;
+    };
+
+    // this determines which hardware instances you want to use for core system level functions
+    chosen {
+        zephyr,console = &usart1;
+        zephyr,shell-uart = &usart1;
+        zephyr,flash = &flash0;
+    };
+
+};
+
+&i2c1 {
+    status = "okay";
+    pinctrl = <>;
+
+    bme688: bme688@77 {
+        compatible = "bosch,bme680";
+        reg = <0x77>;
+    };
+};
+
+&spi1 {
+    status = "okay";
+    // on the datasheet this says 20 Mbit/s
+    // spi-max-frequency = <0x1312D00>;
+
+    // address DOES NOT need to be set here in our case, the lora drivers handle all the SPI transactions under the hood
+    sx1262: sx1262@0 {
+        status = "okay";
+        spi-max-frequency = <20000000>;
+        compatible = "semtech,sx1262";
+        // this will be PA2 (2) for our custom PCB
+        reset-gpios = <&gpioa 0 GPIO_ACTIVE_LOW>;
+        // this will be PA1 (1) for our custom PCB
+        busy-gpios = <&gpiob 3 GPIO_ACTIVE_HIGH>;
+        // this will be PA3 (3) for our custom PCB
+        dio1-gpios = <&gpiob 4 GPIO_ACTIVE_LOW>;
+        reg = <0x0>;
+    };
+};
+
+&gpio0 {
+    status = "okay";
+};

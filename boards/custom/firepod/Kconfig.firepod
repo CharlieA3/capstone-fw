@@ -1,0 +1,4 @@
+# defines the BOARD_FIREPOD symbol and selects the stm32 chip that we are using
+
+config BOARD_FIREPOD
+	select SOC_STM32L432XX
