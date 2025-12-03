@@ -1,34 +1,34 @@
-#include <zephyr/include/zephyr/dt-bindings/pinctrl/stm32-pinctrl-common.h>
-#include <zephyr/include/zephyr/dt-bindings/pinctrl/stm32-pinctrl.h>
+#include <zephyr/dt-bindings/pinctrl/stm32-pinctrl-common.h>
+#include <zephyr/dt-bindings/pinctrl/stm32-pinctrl.h>
 
 // STM32_PINMUX takes in (port, line, mode)
 // pinctrl only needs to define the pins using alternate functions (alternate from GPIOs) or have different electrical behavior from the default GPIO
 &pinctrl {
     i2c1_default: i2c1_default {
-        group1 {
-            pinmux = <
-                STM32_PINMUX(STM32_PORTB, 6, STM32_AF4) /* SCL */
-                STM32_PINMUX(STM32_PORTB, 7, STM32_AF4) /* SDA */
-            >;
-            drive-open-drain;
-        }
+        pinmux = <STM32_PINMUX('B', 6, AF4)
+                 STM32_PINMUX('B', 7, AF4)>;
+        drive-open-drain;
+        bias-pull-up;
     };
     // cs pin will go in the gpios
     spi1_default: spi1_default {
-        sck_mosi_group {
-            pinmux = <
-                STM32_PINMUX(STM32_PORTA, 5, STM32_AF5) /* SCK  */
-                STM32_PINMUX(STM32_PORTA, 7, STM32_AF5) /* MOSI */
-            >;
+        group1 {
+            pinmux = <STM32_PINMUX('A', 5, AF5)
+                     STM32_PINMUX('A', 7, AF5)>;
             drive-push-pull;
             bias-disable;
         };
-
-        miso_group {
-            pinmux = <
-                STM32_PINMUX(STM32_PORTA, 6, STM32_AF5) /* MISO */
-            >;
+        group2 {
+            pinmux = <STM32_PINMUX('A', 6, AF5)>; /* MISO */
             bias-disable; /* when would this be bias-pullup? */
         };
-    }
+    };
+
+    usart1_default: usart1_default {
+        group1 {
+            pinmux = <STM32_PINMUX('A', 9, AF7)
+                     STM32_PINMUX('A', 10, AF7)>;
+            bias-disable;
+        };
+    };
 };

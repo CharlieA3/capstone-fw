@@ -1,5 +1,5 @@
 identifier: firepod
-name: Generate Hardware Firpod
+name: Generate Hardware Firepod
 type: mcu
 arch: arm
 ram: 64

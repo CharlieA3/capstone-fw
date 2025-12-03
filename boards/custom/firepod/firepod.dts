@@ -1,15 +1,18 @@
 /dts-v1/;
 
-#include "arm/st/l4/stm32l432.dtsi"
-#include "firepod_pinctrl.dtsi"
+#include <st/l4/stm32l432.dtsi>
+#include <st/l4/stm32l432k(b-c)ux-pinctrl.dtsi>
+
+// TODO: Look into why I don't need this for STM32
+// #include "firepod_pinctrl.dtsi"
 
 / {
     model = "firepod";
     compatible = "custom,firepod";
 
     aliases {
-        i2c = &i2c1;
-        spi = &spi1;
+        i2c-1 = &i2c1;
+        spi-1 = &spi1;
         uart-1 = &usart1;
     };
 
@@ -18,13 +21,33 @@
         zephyr,console = &usart1;
         zephyr,shell-uart = &usart1;
         zephyr,flash = &flash0;
+        zephyr,sram = &sram0;
     };
 
 };
 
+&sram0 {
+    reg = <0x20000000 0x10000>;  // 64KB = 0x10000
+};
+
+&flash0 {
+    reg = <0x08000000 0x20000>;  // 128KB = 0x20000
+};
+
+&rcc {
+    clocks = <&pll>;
+    // TODO: CHECK THIS
+    clock-frequency = <80000000>;
+    ahb-prescaler = <1>;
+    apb1-prescaler = <1>;
+    apb2-prescaler = <1>;
+};
+
 &i2c1 {
     status = "okay";
-    pinctrl = <>;
+    pinctrl-0 = <&i2c1_scl_pb6 &i2c1_sda_pb7>;
+    pinctrl-names = "default";
+    clock-frequency = <100000>;
 
     bme688: bme688@77 {
         compatible = "bosch,bme680";
@@ -32,8 +55,15 @@
     };
 };
 
+&quadspi {
+    status = "disabled";
+};
+
+// TODO: ADD CS PIN
 &spi1 {
     status = "okay";
+    pinctrl-0 = <&spi1_sck_pa5 &spi1_miso_pa6 &spi1_mosi_pa7>;
+    pinctrl-names = "default";
     // on the datasheet this says 20 Mbit/s
     // spi-max-frequency = <0x1312D00>;
 
@@ -52,6 +82,9 @@
     };
 };
 
-&gpio0 {
+&usart1 {
     status = "okay";
+    pinctrl-0 = <&usart1_tx_pa9 &usart1_rx_pa10>;
+    pinctrl-names = "default";
+    current-speed = <115200>;
 };
