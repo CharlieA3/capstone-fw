@@ -13,7 +13,6 @@
     aliases {
         i2c-1 = &i2c1;
         spi-1 = &spi1;
-        uart-1 = &usart1;
     };
 
     // this determines which hardware instances you want to use for core system level functions
@@ -62,29 +61,34 @@
 // TODO: ADD CS PIN
 &spi1 {
     status = "okay";
+    cs-gpios = <&gpiob 0 GPIO_ACTIVE_LOW>;
     pinctrl-0 = <&spi1_sck_pa5 &spi1_miso_pa6 &spi1_mosi_pa7>;
     pinctrl-names = "default";
-    // on the datasheet this says 20 Mbit/s
-    // spi-max-frequency = <0x1312D00>;
 
     // address DOES NOT need to be set here in our case, the lora drivers handle all the SPI transactions under the hood
     sx1262: sx1262@0 {
         status = "okay";
-        spi-max-frequency = <20000000>;
+        spi-max-frequency = <16000000>;
         compatible = "semtech,sx1262";
         // this will be PA2 (2) for our custom PCB
-        reset-gpios = <&gpioa 0 GPIO_ACTIVE_LOW>;
+        reset-gpios = <&gpioa 2 GPIO_ACTIVE_LOW>;
         // this will be PA1 (1) for our custom PCB
-        busy-gpios = <&gpiob 3 GPIO_ACTIVE_HIGH>;
+        busy-gpios = <&gpioa 1 GPIO_ACTIVE_HIGH>;
         // this will be PA3 (3) for our custom PCB
+        dio1-gpios = <&gpioa 3 GPIO_ACTIVE_HIGH>;
+
+        /*
+        reset-gpios = <&gpioa 0 GPIO_ACTIVE_LOW>;
+        busy-gpios = <&gpiob 3 GPIO_ACTIVE_HIGH>;
         dio1-gpios = <&gpiob 4 GPIO_ACTIVE_LOW>;
+        */
         reg = <0x0>;
     };
 };
 
-&usart1 {
-    status = "okay";
-    pinctrl-0 = <&usart1_tx_pa9 &usart1_rx_pa10>;
-    pinctrl-names = "default";
-    current-speed = <115200>;
-};
+// &usart1 {
+//     status = "okay";
+//     pinctrl-0 = <&usart1_tx_pa9 &usart1_rx_pa10>;
+//     pinctrl-names = "default";
+//     current-speed = <115200>;
+// };

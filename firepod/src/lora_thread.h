@@ -62,6 +62,7 @@
 #define LORA_THREAD_H
 
 #include <zephyr/kernel.h>
+#include <zephyr/drivers/spi.h>
 #include <zephyr/drivers/lora.h>
 
 // LoRa thread configuration
