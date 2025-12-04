@@ -22,18 +22,19 @@
     status = "okay";
     // on the datasheet this says 20 Mbit/s
     // spi-max-frequency = <0x1312D00>;
-
+    // this is the PA8 (GPIO 7) on the dev board to select SPI 
+    cs-gpios = <&gpioa 8 GPIO_ACTIVE_LOW>;
     // address DOES NOT need to be set here, the lora drivers handle all the SPI transactions under the hood
     sx1262: sx1262@0 {
         status = "okay";
-        spi-max-frequency = <20000000>;
+        spi-max-frequency = <16000000>;
         compatible = "semtech,sx1262";
         // this will be PA2 (2) for our custom PCB
         reset-gpios = <&gpioa 0 GPIO_ACTIVE_LOW>;
         // this will be PA1 (1) for our custom PCB
         busy-gpios = <&gpiob 3 GPIO_ACTIVE_HIGH>;
         // this will be PA3 (3) for our custom PCB
-        dio1-gpios = <&gpiob 4 GPIO_ACTIVE_LOW>;
+        dio1-gpios = <&gpiob 4 GPIO_ACTIVE_HIGH>;
         reg = <0x0>;
     };
 };

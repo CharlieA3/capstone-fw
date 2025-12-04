@@ -30,17 +30,17 @@
 #include <zephyr/drivers/i2c.h>
 
 // Thread configuration
-#define STACK_SIZE 1024
+#define STACK_SIZE 2048
 #define SENSOR_PRIO 5
 #define CONSOLE_PRIO 5
 
 // Structure for passing sensor data between threads
 struct bme688_readings
 {
-    float temperature;       // Celsius
-    float humidity;          // %RH
-    float pressure;          // Pascals
-    float gas_resistance;    // Ohms
+    int32_t temperature;       // Celsius
+    int32_t humidity;          // %RH
+    int32_t pressure;          // Pascals
+    int32_t gas_resistance;    // Ohms
 };
 
 // Externally defined message queue used between sensor + console threads

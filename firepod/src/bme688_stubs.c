@@ -15,16 +15,34 @@ int8_t user_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t length, void 
     return (ret == 0) ? 0 : -1;
 }
 
-int8_t user_i2c_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t length, void *intf_ptr)
+// int8_t user_i2c_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t length, void *intf_ptr)
+// {
+//     const struct i2c_dt_spec *i2c = (const struct i2c_dt_spec *)intf_ptr;
+
+//     int ret = i2c_burst_write_dt(i2c, reg_addr, reg_data, length);
+
+//     printk("[STUB] WRITE reg=0x%02X len=%d ret=%d\n", reg_addr, length, ret);
+
+//     return (ret == 0) ? 0 : -1;
+// }
+int8_t user_i2c_write(uint8_t reg_addr, const uint8_t *reg_data,
+                      uint32_t length, void *intf_ptr)
 {
     const struct i2c_dt_spec *i2c = (const struct i2c_dt_spec *)intf_ptr;
 
-    int ret = i2c_burst_write_dt(i2c, reg_addr, reg_data, length);
+    // Build buffer: [register][data...]
+    uint8_t buffer[1 + length];
+    buffer[0] = reg_addr;
+    memcpy(&buffer[1], reg_data, length);
 
-    printk("[STUB] WRITE reg=0x%02X len=%d ret=%d\n", reg_addr, length, ret);
+    int ret = i2c_write_dt(i2c, buffer, sizeof(buffer));
+
+    printk("[STUB] WRITE reg=0x%02X len=%u ret=%d\n",
+           reg_addr, length, ret);
 
     return (ret == 0) ? 0 : -1;
 }
+
 
 void user_delay_us(uint32_t period, void *intf_ptr)
 {
