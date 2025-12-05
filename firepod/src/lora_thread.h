@@ -65,20 +65,21 @@
 #include <zephyr/drivers/spi.h>
 #include <zephyr/drivers/lora.h>
 
-// LoRa thread configuration
-#define LORA_STACK_SIZE 2048
-#define LORA_PRIO 5
+#define LORA_STACK_SIZE 512
+#define LORA_PRIO 4
 
-// LoRa packet structure
-typedef struct {
-    uint8_t data[255];      // Payload data
-    uint8_t length;         // Payload length
-    int8_t rssi;            // Received signal strength (for RX)
-    int8_t snr;             // Signal-to-noise ratio (for RX)
-    bool is_tx;             // true = transmit, false = receive
+extern struct k_msgq sx1262_queue;
+
+typedef struct __attribute__((packed))
+{
+    uint8_t identifier;
+    int32_t temperature;
+    int32_t humidity;
+    int32_t pressure;
+    int32_t gas_resistance;
 } spi_sx1262_packet_t;
 
-// LoRa thread entry point
-void lora_thread(void *msgq_ptr, void *unused1, void *unused2);
+// entry point for LoRa
+void lora_thread_entry_point(void *a1, void *a2, void *a3);
 
 #endif // LORA_THREAD_H
