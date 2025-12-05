@@ -39,12 +39,12 @@ int main(void)
                     &bme688_queue, NULL, NULL,
                     CONSOLE_PRIO, 0, K_NO_WAIT);
 
-    // k_thread_create(&lora_rf_thread,
-    //                 lora_stack,
-    //                 LORA_STACK_SIZE,
-    //                 lora_thread,
-    //                 &sx1262_queue, NULL, NULL,
-    //                 LORA_PRIO, 0, K_NO_WAIT);
+    k_thread_create(&lora_rf_thread,
+                    lora_stack,
+                    LORA_STACK_SIZE,
+                    lora_thread_entry_point,
+                    &sx1262_msg_buffer, NULL, NULL,
+                    LORA_PRIO, 0, K_NO_WAIT);
 
     return 0;
 }
