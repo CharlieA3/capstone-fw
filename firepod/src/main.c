@@ -19,18 +19,23 @@ struct k_thread i2c_reading_thread;
 struct k_thread printing_thread;
 struct k_thread lora_rf_thread;
 
+// semaphore for triggering lora thread
+struct k_sem lora_trigger_sem;
+
 int main(void)
 {
     // init message queue to pass to threads
     k_msgq_init(&bme688_queue, bme688_buffer, sizeof(struct bme688_readings), 10);
     k_msgq_init(&sx1262_queue, sx1262_msg_buffer, sizeof(spi_sx1262_packet_t), 10);
 
-    k_thread_create(&i2c_reading_thread,
-                    stack_area_1,
-                    K_THREAD_STACK_SIZEOF(stack_area_1),
-                    sensor_reading_entry_point,
-                    &bme688_queue, NULL, NULL,
-                    SENSOR_PRIO, 0, K_NO_WAIT);
+    k_sem_init(&lora_trigger_sem, 0, 1);
+
+    // k_thread_create(&i2c_reading_thread,
+    //                 stack_area_1,
+    //                 K_THREAD_STACK_SIZEOF(stack_area_1),
+    //                 sensor_reading_entry_point,
+    //                 &bme688_queue, NULL, NULL,
+    //                 SENSOR_PRIO, 0, K_NO_WAIT);
 
     k_thread_create(&printing_thread,
                     stack_area_2,
@@ -43,7 +48,7 @@ int main(void)
                     lora_stack,
                     LORA_STACK_SIZE,
                     lora_thread_entry_point,
-                    &sx1262_msg_buffer, NULL, NULL,
+                    &sx1262_msg_buffer, &lora_trigger_sem, NULL,
                     LORA_PRIO, 0, K_NO_WAIT);
 
     return 0;

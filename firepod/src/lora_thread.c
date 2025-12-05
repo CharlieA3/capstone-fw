@@ -44,8 +44,14 @@ void lora_thread_entry_point(void *a1, void *a2, void *a3)
 
     sensor_data_send.identifier = POD_1;
 
+    struct k_sem *lora_trigger_sem = (struct k_sem *)a2;
+
     while (true)
     {
+        k_sem_take(&lora_trigger_sem, K_FOREVER);
+
+        // TODO: ADD THIS IN THE SENSOR THREAD AFTER PUTTING DATA IN THE QUEUE -> k_sem_give(&lora_trigger_sem);
+
         // this will populate the sensor_data_send packet struct
         if (k_msgq_get(&sx1262_queue, &sensor_data_send, K_NO_WAIT) == 0)
         {
