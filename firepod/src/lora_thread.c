@@ -15,7 +15,9 @@ static const struct device *lora_dev = DEVICE_DT_GET(SX1262);
 void lora_thread_entry_point(void *a1, void *a2, void *a3)
 {
     int ret;
-    spi_sx1262_packet_t sensor_data_send = {NO_DATA};
+    spi_sx1262_packet_t sensor_data_send = {0};
+
+    printk("Entered lora thread");
 
     struct k_msgq *sx1262_queue = (struct k_msgq *)a1;
 
@@ -29,7 +31,7 @@ void lora_thread_entry_point(void *a1, void *a2, void *a3)
         .frequency = 915000000,
         .bandwidth = BW_125_KHZ,
         .datarate = SF_7,
-        .coding_rate = CR_4_7,
+        .coding_rate = CR_4_5,
         .preamble_len = 8,
         .tx_power = 14,
         .tx = true,
@@ -48,12 +50,13 @@ void lora_thread_entry_point(void *a1, void *a2, void *a3)
 
     while (true)
     {
-        k_sem_take(&lora_trigger_sem, K_FOREVER);
+        printk("Inside while loop of lora thread");
+        k_sem_take(lora_trigger_sem, K_FOREVER);
 
-        // TODO: ADD THIS IN THE SENSOR THREAD AFTER PUTTING DATA IN THE QUEUE -> k_sem_give(&lora_trigger_sem);
+        // TODO: ADD THIS IN THE SENSOR THREAD AFTER PUTTING DATA IN THE QUEUE ->
 
         // this will populate the sensor_data_send packet struct
-        if (k_msgq_get(&sx1262_queue, &sensor_data_send, K_NO_WAIT) == 0)
+        if (k_msgq_get(sx1262_queue, &sensor_data_send, K_NO_WAIT) == 0)
         {
             ret = lora_send(lora_dev, (uint8_t *)&sensor_data_send, sizeof(sensor_data_send));
 
@@ -67,7 +70,7 @@ void lora_thread_entry_point(void *a1, void *a2, void *a3)
             sensor_data_send.pressure = NO_DATA;
             sensor_data_send.gas_resistance = NO_DATA;
 
-            ret = lora_send(lora_dev, &sensor_data_send, sizeof(sensor_data_send));
+            ret = lora_send(lora_dev, (uint8_t *)&sensor_data_send, sizeof(sensor_data_send));
 
             (ret < 0) ? printk("LoRa send failed: %d\n", ret) : printk("Sent test message\n");
         }

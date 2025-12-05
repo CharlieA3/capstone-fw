@@ -60,8 +60,6 @@
 // //     }
 // // }
 
-
-
 // // #include <zephyr/drivers/i2c.h>
 // // #include "sensor_thread.h"
 // // #include "bosch/BME68x_SensorAPI/bme68x.h"
@@ -69,7 +67,6 @@
 
 // // static struct bme68x_dev bme;
 // // extern const struct i2c_dt_spec *bme68x_get_i2c(void);
-
 
 // // // void sensor_reading_entry_point(void *a1, void *a2, void *a3)
 // // // {
@@ -103,7 +100,7 @@
 // // //         ret = i2c_burst_read_dt(&bme688, 0x25, hum_buf, 2);
 
 // // //         /*
-// // //         Temp data are 
+// // //         Temp data are
 // // //         */
 // // //         data.temp = ((uint32_t)temp_buf[0] << 12) | ((uint32_t)temp_buf[1] << 4) | ((uint32_t)temp_buf[2] >> 4);
 
@@ -309,10 +306,10 @@
 // //     }
 // // }
 
-
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/sys/printk.h>
+#include <stdlib.h>
 
 #include "sensor_thread.h"
 #include "bme688_stubs.h"
@@ -324,7 +321,6 @@
 
 // Bosch API device struct
 static struct bme68x_dev bme;
-
 
 // void sensor_reading_entry_point(void *a1, void *a2, void *a3)
 // {
@@ -413,12 +409,14 @@ void sensor_reading_entry_point(void *a1, void *a2, void *a3)
 {
     struct k_msgq *q = (struct k_msgq *)a1;
 
+    struct k_sem *lora_trigger_sem = (struct k_sem *)a2;
+
     /* --- Configure Bosch API --- */
-    bme.intf      = BME68X_I2C_INTF;
-    bme.read      = user_i2c_read;
-    bme.write     = user_i2c_write;
-    bme.delay_us  = user_delay_us;
-    bme.intf_ptr  = (void *)bme68x_get_i2c();
+    bme.intf = BME68X_I2C_INTF;
+    bme.read = user_i2c_read;
+    bme.write = user_i2c_write;
+    bme.delay_us = user_delay_us;
+    bme.intf_ptr = (void *)bme68x_get_i2c();
 
     const struct i2c_dt_spec *spec = bme68x_get_i2c();
     printk("[DBG] I2C addr=0x%02X bus=%s ready=%d\n",
@@ -426,38 +424,41 @@ void sensor_reading_entry_point(void *a1, void *a2, void *a3)
 
     int8_t rslt = bme68x_init(&bme);
     printk("[DBG] bme68x_init result=%d\n", rslt);
-    if (rslt != BME68X_OK) {
+    if (rslt != BME68X_OK)
+    {
         printk("[ERR] BME688 init failed: %d\n", rslt);
         return;
     }
 
     /* --- Sensor config --- */
     struct bme68x_conf conf = {
-        .os_hum  = BME68X_OS_1X,
+        .os_hum = BME68X_OS_1X,
         .os_temp = BME68X_OS_2X,
         .os_pres = BME68X_OS_1X,
-        .filter  = BME68X_FILTER_OFF,
+        .filter = BME68X_FILTER_OFF,
     };
 
     bme68x_set_conf(&conf, &bme);
 
     struct bme68x_heatr_conf heatr = {
-        .enable     = BME68X_ENABLE,
+        .enable = BME68X_ENABLE,
         .heatr_temp = 320,
-        .heatr_dur  = 150,
+        .heatr_dur = 150,
     };
 
     bme68x_set_heatr_conf(BME68X_FORCED_MODE, &heatr, &bme);
 
     /* --- MAIN LOOP --- */
-    while (1) {
+    while (1)
+    {
 
         bme68x_set_op_mode(BME68X_FORCED_MODE, &bme);
 
         uint8_t n_fields = 0;
         struct bme68x_data raw[1];
 
-        do {
+        do
+        {
             bme.delay_us(5000, bme.intf_ptr);
             bme68x_get_data(BME68X_FORCED_MODE, raw, &n_fields, &bme);
         } while (n_fields == 0);
@@ -467,17 +468,16 @@ void sensor_reading_entry_point(void *a1, void *a2, void *a3)
 
         /* ---- Convert float → fixed point ints ---- */
 
-        int32_t temp_mC   = (int32_t)(raw[0].temperature * 1000.0f);
-        int32_t hum_mPct  = (int32_t)(raw[0].humidity * 1000.0f);
-        int32_t pres_Pa   = (int32_t)(raw[0].pressure);
-        int32_t gas_cOhm  = gas_valid ? (int32_t)(raw[0].gas_resistance * 100.0f) : -1;
+        int32_t temp_mC = (int32_t)(raw[0].temperature * 1000.0f);
+        int32_t hum_mPct = (int32_t)(raw[0].humidity * 1000.0f);
+        int32_t pres_Pa = (int32_t)(raw[0].pressure);
+        int32_t gas_cOhm = gas_valid ? (int32_t)(raw[0].gas_resistance * 100.0f) : -1;
 
         struct bme688_readings out = {
             .temperature = temp_mC,
-            .humidity  = hum_mPct,
-            .pressure    = pres_Pa,
-            .gas_resistance       = gas_cOhm
-        };
+            .humidity = hum_mPct,
+            .pressure = pres_Pa,
+            .gas_resistance = gas_cOhm};
 
         /* ---- Print nicely formatted values ---- */
 
@@ -490,21 +490,24 @@ void sensor_reading_entry_point(void *a1, void *a2, void *a3)
         printk("Pres: %d Pa\n",
                pres_Pa);
 
-        if (gas_cOhm >= 0) {
+        if (gas_cOhm >= 0)
+        {
             printk("Gas : %d.%02d ohms\n",
                    gas_cOhm / 100, gas_cOhm % 100);
-        } else {
+        }
+        else
+        {
             printk("Gas : INVALID\n");
         }
 
         /* Send to message queue */
         k_msgq_put(q, &out, K_NO_WAIT);
 
-        k_sleep(K_MSEC(500));
+        k_sem_give(lora_trigger_sem);
+
+        k_sleep(K_MSEC(1000));
     }
 }
-
-
 
 // void console_entry_point(void *a1, void *a2, void *a3)
 // {
@@ -525,7 +528,8 @@ void console_entry_point(void *a1, void *a2, void *a3)
 {
     struct bme688_readings v;
 
-    while (true) {
+    while (true)
+    {
         k_msgq_get(&bme688_queue, &v, K_FOREVER);
 
         printk("\n[CONSOLE]\n");
@@ -542,10 +546,13 @@ void console_entry_point(void *a1, void *a2, void *a3)
         printk("Press: %d Pa\n", v.pressure);
 
         // Gas resistance: centi-ohm → X.YY
-        if (v.gas_resistance >= 0) {
+        if (v.gas_resistance >= 0)
+        {
             printk("Gas : %d.%02d ohms\n",
                    v.gas_resistance / 100, abs(v.gas_resistance % 100));
-        } else {
+        }
+        else
+        {
             printk("Gas : INVALID\n");
         }
     }
