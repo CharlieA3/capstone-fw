@@ -79,6 +79,14 @@ typedef struct __attribute__((packed))
     int32_t gas_resistance;
 } spi_sx1262_packet_t;
 
+typedef struct
+{
+    int32_t temperature;
+    int32_t humidity;
+    int32_t pressure;
+    int32_t gas_resistance;
+} only_sensor_data_packet_t;
+
 // entry point for LoRa
 void lora_thread_entry_point(void *a1, void *a2, void *a3);
 

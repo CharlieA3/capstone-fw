@@ -14,6 +14,7 @@ target_sources(app PRIVATE
     src/main.c
     src/sensor_thread.c
     src/lora_thread.c
+    src/base_station_thread.c
     src/bme688_stubs.c
     src/bosch/BME68x_SensorAPI/bme68x.c
 )

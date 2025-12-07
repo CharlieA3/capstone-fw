@@ -16,6 +16,7 @@ void lora_thread_entry_point(void *a1, void *a2, void *a3)
 {
     int ret;
     spi_sx1262_packet_t sensor_data_send = {0};
+    only_sensor_data_packet_t only_sensor_data = {0};
 
     printk("Entered lora thread");
 
@@ -53,11 +54,23 @@ void lora_thread_entry_point(void *a1, void *a2, void *a3)
         printk("Inside while loop of lora thread");
         k_sem_take(lora_trigger_sem, K_FOREVER);
 
-        // TODO: ADD THIS IN THE SENSOR THREAD AFTER PUTTING DATA IN THE QUEUE ->
-
         // this will populate the sensor_data_send packet struct
-        if (k_msgq_get(sx1262_queue, &sensor_data_send, K_NO_WAIT) == 0)
+        if (k_msgq_get(sx1262_queue, &only_sensor_data, K_NO_WAIT) == 0)
         {
+
+            sensor_data_send.temperature = only_sensor_data.temperature;
+            sensor_data_send.gas_resistance = only_sensor_data.gas_resistance;
+            sensor_data_send.humidity = only_sensor_data.humidity;
+            sensor_data_send.pressure = only_sensor_data.pressure;
+
+            printk("Raw packet (%d bytes): ", sizeof(sensor_data_send));
+            uint8_t *raw_bytes = (uint8_t *)&sensor_data_send;
+            for (int i = 0; i < sizeof(sensor_data_send); i++)
+            {
+                printk("%02X ", raw_bytes[i]);
+            }
+            printk("\n");
+
             ret = lora_send(lora_dev, (uint8_t *)&sensor_data_send, sizeof(sensor_data_send));
 
             (ret < 0) ? printk("LoRa send failed: %d\n", ret) : printk("Sent %d bytes over LoRa\n", sizeof(sensor_data_send));

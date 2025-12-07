@@ -1,6 +1,7 @@
 #include <zephyr/kernel.h>
 #include "sensor_thread.h"
 #include "lora_thread.h"
+#include "base_station_thread.h"
 
 // global message queue
 static char bme688_buffer[10 * sizeof(struct bme688_readings)];
@@ -14,10 +15,12 @@ struct k_msgq sx1262_queue;
 K_THREAD_STACK_DEFINE(stack_area_1, STACK_SIZE);
 K_THREAD_STACK_DEFINE(stack_area_2, STACK_SIZE);
 K_THREAD_STACK_DEFINE(lora_stack, LORA_STACK_SIZE);
+K_THREAD_STACK_DEFINE(base_station_stack, LORA_STACK_SIZE);
 
 struct k_thread i2c_reading_thread;
 struct k_thread printing_thread;
 struct k_thread lora_rf_thread;
+struct k_thread base_station_thread;
 
 // semaphore for triggering lora thread
 struct k_sem lora_trigger_sem;
@@ -50,6 +53,13 @@ int main(void)
                     lora_thread_entry_point,
                     &bme688_queue, &lora_trigger_sem, NULL,
                     LORA_PRIO, 0, K_NO_WAIT);
+
+    // k_thread_create(&base_station_thread,
+    //                 base_station_stack,
+    //                 BASE_STATION_STACK_SIZE,
+    //                 base_station_thread_entry_point,
+    //                 NULL, NULL, NULL,
+    //                 LORA_PRIO, 0, K_NO_WAIT);
 
     return 0;
 }
