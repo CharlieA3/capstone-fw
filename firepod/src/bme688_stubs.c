@@ -2,12 +2,14 @@
 
 #define BME DT_NODELABEL(bme688)
 
+// grabs i2c spec from the devicetree
 static const struct i2c_dt_spec bme688 = I2C_DT_SPEC_GET(BME);
 
 int8_t user_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t length, void *intf_ptr)
 {
     const struct i2c_dt_spec *i2c = (const struct i2c_dt_spec *)intf_ptr;
 
+    // go to this address, ask for this register, and give me 'length' bytes back
     int ret = i2c_burst_read_dt(i2c, reg_addr, reg_data, length);
 
     printk("[STUB] READ reg=0x%02X len=%d ret=%d\n", reg_addr, length, ret);
@@ -15,22 +17,13 @@ int8_t user_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t length, void 
     return (ret == 0) ? 0 : -1;
 }
 
-// int8_t user_i2c_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t length, void *intf_ptr)
-// {
-//     const struct i2c_dt_spec *i2c = (const struct i2c_dt_spec *)intf_ptr;
-
-//     int ret = i2c_burst_write_dt(i2c, reg_addr, reg_data, length);
-
-//     printk("[STUB] WRITE reg=0x%02X len=%d ret=%d\n", reg_addr, length, ret);
-
-//     return (ret == 0) ? 0 : -1;
-// }
+// 
 int8_t user_i2c_write(uint8_t reg_addr, const uint8_t *reg_data,
                       uint32_t length, void *intf_ptr)
 {
     const struct i2c_dt_spec *i2c = (const struct i2c_dt_spec *)intf_ptr;
 
-    // Build buffer: [register][data...]
+    // building buffer
     uint8_t buffer[1 + length];
     buffer[0] = reg_addr;
     memcpy(&buffer[1], reg_data, length);
