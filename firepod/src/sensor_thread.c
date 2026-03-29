@@ -21,8 +21,8 @@ void sensor_reading_entry_point(void *a1, void *a2, void *a3)
 
     struct k_sem *lora_trigger_sem = (struct k_sem *)a2;
 
-    init_bme();
-    set_bme_conf();
+    init_bme688();
+    set_config_bme688();
 
     while (1)
     {
@@ -78,7 +78,7 @@ void sensor_reading_entry_point(void *a1, void *a2, void *a3)
     }
 }
 
-void init_bme()
+void init_bme688()
 {
     // configure Bosch API -> function pointer assignment -> using glue functions to enable the use of Zephyr with this vendor API
     bme.intf = BME68X_I2C_INTF;
@@ -101,7 +101,7 @@ void init_bme()
     }
 }
 
-void set_bme_conf()
+void set_config_bme688()
 {
     // configuration to determine how many measurements that will be requested and if there will be a filter applied
     struct bme68x_conf conf = {

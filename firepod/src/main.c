@@ -3,18 +3,19 @@
 #include "lora_thread.h"
 #include "base_station_thread.h"
 
+#define STACK_SIZE 2048
+
 // global message queue
 static char bme688_buffer[10 * sizeof(struct bme688_readings)];
 struct k_msgq bme688_queue;
 
-#define STACK_SIZE 2048
-
 static char sx1262_msg_buffer[10 * sizeof(spi_sx1262_packet_t)];
 struct k_msgq sx1262_queue;
 
-K_THREAD_STACK_DEFINE(stack_area_1, STACK_SIZE);
-K_THREAD_STACK_DEFINE(stack_area_2, STACK_SIZE);
-K_THREAD_STACK_DEFINE(lora_stack, LORA_STACK_SIZE);
+// using static definition macro here for memory safety
+K_THREAD_STACK_DEFINE(bme_thread_stack, STACK_SIZE);
+K_THREAD_STACK_DEFINE(printing_thread_stack, STACK_SIZE);
+K_THREAD_STACK_DEFINE(lora_thread_stack, LORA_STACK_SIZE);
 K_THREAD_STACK_DEFINE(base_station_stack, LORA_STACK_SIZE);
 
 struct k_thread i2c_reading_thread;
@@ -34,8 +35,8 @@ int main(void)
     k_sem_init(&lora_trigger_sem, 0, 1);
 
     k_thread_create(&i2c_reading_thread,
-                    stack_area_1,
-                    K_THREAD_STACK_SIZEOF(stack_area_1),
+                    bme_thread_stack,
+                    STACK_SIZE,
                     sensor_reading_entry_point,
                     &bme688_queue, &lora_trigger_sem, NULL,
                     SENSOR_PRIO, 0, K_NO_WAIT);
@@ -48,7 +49,7 @@ int main(void)
     //                 CONSOLE_PRIO, 0, K_NO_WAIT);
 
     k_thread_create(&lora_rf_thread,
-                    lora_stack,
+                    lora_thread_stack,
                     LORA_STACK_SIZE,
                     lora_thread_entry_point,
                     &bme688_queue, &lora_trigger_sem, NULL,

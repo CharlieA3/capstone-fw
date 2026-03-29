@@ -1,5 +1,7 @@
 #include "bme688_stubs.h"
 
+/*The Bosch API has all the logic and math, but is platform agnostic. To use it with Zephyr, "glue" or stub functions must be written*/
+
 #define BME DT_NODELABEL(bme688)
 
 // grabs i2c spec from the devicetree
@@ -17,7 +19,6 @@ int8_t user_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t length, void 
     return (ret == 0) ? 0 : -1;
 }
 
-// 
 int8_t user_i2c_write(uint8_t reg_addr, const uint8_t *reg_data,
                       uint32_t length, void *intf_ptr)
 {
@@ -30,12 +31,10 @@ int8_t user_i2c_write(uint8_t reg_addr, const uint8_t *reg_data,
 
     int ret = i2c_write_dt(i2c, buffer, sizeof(buffer));
 
-    printk("[STUB] WRITE reg=0x%02X len=%u ret=%d\n",
-           reg_addr, length, ret);
+    printk("[STUB] WRITE reg=0x%02X len=%u ret=%d\n", reg_addr, length, ret);
 
     return (ret == 0) ? 0 : -1;
 }
-
 
 void user_delay_us(uint32_t period, void *intf_ptr)
 {
@@ -44,8 +43,9 @@ void user_delay_us(uint32_t period, void *intf_ptr)
 
 const struct i2c_dt_spec *bme68x_get_i2c(void)
 {
-    if (!device_is_ready(bme688.bus)) {
-        printk("BME688 I2C bus not ready!\n");
+    if (!device_is_ready(bme688.bus))
+    {
+        printk("BME688 I2C bus not ready.\n");
     }
     return &bme688;
 }
