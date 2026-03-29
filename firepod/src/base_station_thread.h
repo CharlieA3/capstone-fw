@@ -21,10 +21,11 @@ typedef struct __attribute__((packed))
     int32_t gas_resistance;
 } spi_sx1262_rx_packet_t;
 
-// Entry point for LoRa receiver thread
 void base_station_thread_entry_point(void *a1, void *a2, void *a3);
 
-// Optional: Function to check if valid data has been received recently
+bool init_lora();
+
+// check if valid data has been received recently
 bool check_rx_status(void);
 
 #endif // BASE_STATION_THREAD_H

@@ -27,7 +27,7 @@ void lora_thread_entry_point(void *a1, void *a2, void *a3)
 
     printk("Entered lora thread");
 
-    bool init_complete = init_lora();
+    bool init_complete = init_lora_node();
     if (!init_complete)
     {
         printk("FATAL: LoRa init failed. Hardware may be unresponsive.\n");
@@ -79,7 +79,7 @@ void lora_thread_entry_point(void *a1, void *a2, void *a3)
     }
 }
 
-bool init_lora()
+bool init_lora_node()
 {
     int ret;
     if (!device_is_ready(lora_dev))

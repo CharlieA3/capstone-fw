@@ -70,12 +70,6 @@
 
 extern struct k_msgq sx1262_queue;
 
-typedef struct __attribute__((packed))
-{
-    uint8_t identifier;
-    bme688_data_packet_t env_data;
-} spi_sx1262_packet_t;
-
 typedef struct
 {
     int32_t temperature;
@@ -84,7 +78,15 @@ typedef struct
     int32_t gas_resistance;
 } bme688_data_packet_t;
 
+typedef struct __attribute__((packed))
+{
+    uint8_t identifier;
+    bme688_data_packet_t env_data;
+} spi_sx1262_packet_t;
+
 // entry point for LoRa
 void lora_thread_entry_point(void *a1, void *a2, void *a3);
+bool init_lora_node();
+bool check_heartbeat();
 
 #endif // LORA_THREAD_H

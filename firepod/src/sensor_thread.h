@@ -10,17 +10,19 @@
 
 struct bme688_readings
 {
-    int32_t temperature;       // Celsius
-    int32_t humidity;          // %RH
-    int32_t pressure;          // Pascals
-    int32_t gas_resistance;    // Ohms
+    int32_t temperature;    // Celsius
+    int32_t humidity;       // %RH
+    int32_t pressure;       // Pascals
+    int32_t gas_resistance; // Ohms
 };
 
-// Externally defined message queue used between sensor + console threads
+// Externally defined message queue used between threads
 extern struct k_msgq bme688_queue;
 
-// Thread entry points
 void sensor_reading_entry_point(void *a1, void *a2, void *a3);
 void console_entry_point(void *a1, void *a2, void *a3);
+
+void init_bme688();
+void set_config_bme688();
 
 #endif // SENSOR_THREAD_H
