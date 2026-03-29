@@ -1,5 +1,6 @@
 #include <zephyr/drivers/lora.h>
 #include <zephyr/drivers/spi.h>
+#include <zephyr/sys/reboot.h>
 #include "lora_thread.h"
 
 #define NO_DATA 0
@@ -12,7 +13,7 @@
 // static const struct spi_dt_spec sx1262 = SPI_DT_SPEC_GET(SX1262, SPI_WORD_SET(8) | SPI_TRANSFER_MSB | SPI_OP_MODE_MASTER);
 
 // Get the LoRa device from the same node
-static const struct device *lora_dev = DEVICE_DT_GET(SX1262);
+static const struct device *const lora_dev = DEVICE_DT_GET(DT_ALIAS(lora0));
 
 /* NOTE:
  - If this needed to send with a high frequency, printing should be offloaded to a work queue because the operation is slow -> it sends message character by character over UART
@@ -26,7 +27,18 @@ void lora_thread_entry_point(void *a1, void *a2, void *a3)
 
     printk("Entered lora thread");
 
-    init_lora();
+    bool init_complete = init_lora();
+    if (!init_complete)
+    {
+        printk("FATAL: LoRa init failed. Hardware may be unresponsive.\n");
+        printk("Rebooting system in 10 seconds to attempt recovery...\n");
+
+        // Give the user time to read the message over UART before the reboot
+        k_sleep(K_SECONDS(10));
+
+        // This triggers a hardware-level reset of the microcontroller
+        sys_reboot(SYS_REBOOT_COLD);
+    }
 
     struct k_msgq *sx1262_queue = (struct k_msgq *)a1;
 
@@ -67,13 +79,13 @@ void lora_thread_entry_point(void *a1, void *a2, void *a3)
     }
 }
 
-void init_lora()
+bool init_lora()
 {
     int ret;
     if (!device_is_ready(lora_dev))
     {
         printk("LoRa device not ready\n");
-        return;
+        return false;
     }
 
     struct lora_modem_config config = {
@@ -90,8 +102,9 @@ void init_lora()
     if (ret < 0)
     {
         printk("LoRa config failed: %d\n", ret);
-        return;
+        return false;
     }
+    return true;
 }
 
 bool check_heartbeat()
