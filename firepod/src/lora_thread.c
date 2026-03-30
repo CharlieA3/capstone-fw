@@ -18,6 +18,36 @@
 // Get the LoRa device from the same node
 static const struct device *const lora_dev = DEVICE_DT_GET(DT_ALIAS(lora0));
 
+static uint8_t run_fire_algorithm(bme688_data_packet_t *data)
+{
+    // static so it can be used to compare
+    static int32_t last_temp = 0;
+    uint8_t score = 0;
+
+    if (data->gas_resistance < GAS_THRESHOLD)
+        score += 2;
+    if (data->temperature > TEMP_MAX)
+        score += 1;
+
+    // only check rate of change will multiple data points
+    if (last_temp != 0)
+    {
+        int32_t delta_t = data->temperature - last_temp;
+
+        if (delta_t >= ROC_THRESHOLD)
+        {
+            printk("[ALGO] Rapid Temp Rise Detected: +%d C\n", delta_t);
+            score += 2;
+        }
+    }
+
+    // update the "last" value for the next time the thread runs
+    last_temp = data->temperature;
+
+    // return: 0 (cold), 1 (hot), 2 (smoky/dangerous), 3-5 (fire)
+    return score;
+}
+
 /* NOTE:
  - If this needed to send with a high frequency, printing should be offloaded to a work queue because the operation is slow -> it sends message character by character over UART
  - Another option is enabling CONFIG_LOG_MODE_DEFERRED=y to delay the log printing by storing it in a buffer and prints when the CPU is idle
@@ -110,36 +140,6 @@ bool init_lora_node()
         return false;
     }
     return true;
-}
-
-static uint8_t run_fire_algorithm(bme688_data_packet_t *data)
-{
-    // static so it can be used to compare
-    static int32_t last_temp = 0;
-    uint8_t score = 0;
-
-    if (data->gas_resistance < GAS_THRESHOLD)
-        score += 2;
-    if (data->temperature > TEMP_MAX)
-        score += 1;
-
-    // only check rate of change will multiple data points
-    if (last_temp != 0)
-    {
-        int32_t delta_t = data->temperature - last_temp;
-
-        if (delta_t >= ROC_THRESHOLD)
-        {
-            printk("[ALGO] Rapid Temp Rise Detected: +%d C\n", delta_t);
-            score += 2;
-        }
-    }
-
-    // update the "last" value for the next time the thread runs
-    last_temp = data->temperature;
-
-    // return: 0 (cold), 1 (hot), 2 (smoky/dangerous), 3-5 (fire)
-    return score;
 }
 
 bool check_heartbeat()
