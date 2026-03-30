@@ -5,6 +5,9 @@
 
 #define NO_DATA 0
 #define POD_1 1
+#define ROC_THRESHOLD 2 // 2 degree delta
+#define GAS_THRESHOLD 50000
+#define TEMP_MAX 45
 
 // Access the node from the devicetree
 #define SX1262 DT_NODELABEL(sx1262)
@@ -58,6 +61,8 @@ void lora_thread_entry_point(void *a1, void *a2, void *a3)
 
             lora_packet_tx.env_data = bme688_data;
 
+            lora_packet_tx.fire_alert = run_fire_algorithm(&bme688_data);
+
             // great example of code that can be offloaded to a work queue
             printk("Raw packet (%d bytes): ", sizeof(lora_packet_tx));
             uint8_t *raw_bytes = (uint8_t *)&lora_packet_tx;
@@ -105,6 +110,36 @@ bool init_lora_node()
         return false;
     }
     return true;
+}
+
+static uint8_t run_fire_algorithm(bme688_data_packet_t *data)
+{
+    // static so it can be used to compare
+    static int32_t last_temp = 0;
+    uint8_t score = 0;
+
+    if (data->gas_resistance < GAS_THRESHOLD)
+        score += 2;
+    if (data->temperature > TEMP_MAX)
+        score += 1;
+
+    // only check rate of change will multiple data points
+    if (last_temp != 0)
+    {
+        int32_t delta_t = data->temperature - last_temp;
+
+        if (delta_t >= ROC_THRESHOLD)
+        {
+            printk("[ALGO] Rapid Temp Rise Detected: +%d C\n", delta_t);
+            score += 2;
+        }
+    }
+
+    // update the "last" value for the next time the thread runs
+    last_temp = data->temperature;
+
+    // return: 0 (cold), 1 (hot), 2 (smoky/dangerous), 3-5 (fire)
+    return score;
 }
 
 bool check_heartbeat()
